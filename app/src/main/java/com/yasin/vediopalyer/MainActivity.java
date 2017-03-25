@@ -12,6 +12,7 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.Menu;
@@ -20,21 +21,27 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 import android.widget.VideoView;
 
+import com.yasin.vediopalyer.util.LogUtils;
+import com.yasin.vediopalyer.util.SnackbarUtil;
 import com.yasin.vediopalyer.util.Utils;
 
 public class MainActivity extends AppCompatActivity {
-    private CoordinatorLayout clMain;
+    private RelativeLayout rlMain;
     private FrameLayout flVedio;
-    private AppBarLayout appBarLayout;
+    //private AppBarLayout appBarLayout;
     private FloatingActionButton fab;
     private VideoView video;
     private LinearLayout navigation;
     private ImageView ivBullet;
     private ImageView ivExpand;
     private View mDecorView;
+
+    //默认显示视频操作导航
+    private boolean isShowNavigation = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,22 +51,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initView() {
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        /*Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);*/
 
         mDecorView = getWindow().getDecorView();
-        clMain = (CoordinatorLayout) findViewById(R.id.cl_main);
+        rlMain = (RelativeLayout) findViewById(R.id.rl_main);
         flVedio = (FrameLayout) findViewById(R.id.fl_vidio);
-        appBarLayout = (AppBarLayout) findViewById(R.id.appbar);
+        // appBarLayout = (AppBarLayout) findViewById(R.id.appbar);
         video = (VideoView) findViewById(R.id.video);
         navigation = (LinearLayout) findViewById(R.id.ll_navigation);
         ivBullet = (ImageView) findViewById(R.id.iv_bullet_screen);
         ivExpand = (ImageView) findViewById(R.id.iv_expand);
 
-        navigation.setVisibility(View.GONE);
+        navigation.setVisibility(View.VISIBLE);
+        isShowNavigation = true;
 
         video.setVideoPath("http://baobab.wandoujia.com/api/v1/playUrl?vid=2614&editionType=high");
-        video.setZOrderOnTop(true);
+        //video.setZOrderOnTop(true);
         video.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mp) {
@@ -73,6 +81,36 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        /**
+         * 处理点击屏幕 显示navigation布局
+         */
+        video.setOnTouchListener((v, event) -> {
+            LogUtils.d(event.getAction());
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN://点击
+                    if (isShowNavigation) {
+                        LogUtils.d(isShowNavigation);
+                        navigation.setVisibility(View.GONE);
+                        isShowNavigation = false;
+                    } else {
+                        LogUtils.d(isShowNavigation);
+                        navigation.setVisibility(View.VISIBLE);
+                        isShowNavigation = true;
+                    }
+                    break;
+            }
+            return true;
+        });
+
+
+        //屏幕状态切换
+        ivExpand.setOnClickListener(v -> {
+            changeOrientation();
+        });
+        ivBullet.setOnClickListener(v -> {
+            SnackbarUtil.showLong(this, "弹幕...66666");
+        });
+
         fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -81,6 +119,7 @@ public class MainActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
+        showSystemUI();
     }
 
     /**
@@ -94,11 +133,11 @@ public class MainActivity extends AppCompatActivity {
         //Configuration.ORIENTATION_LANDSCAPE 表示横屏
         if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
             Toast.makeText(MainActivity.this, "现在是竖屏", Toast.LENGTH_SHORT).show();
-            clMain.removeAllViews();
+            rlMain.removeAllViews();
 
-            clMain.addView(appBarLayout);
-            clMain.addView(flVedio);
-            clMain.addView(fab);
+            //clMain.addView(appBarLayout);
+            rlMain.addView(flVedio);
+            rlMain.addView(fab);
 
             int widthPixels = FrameLayout.LayoutParams.MATCH_PARENT;
             int heightPixels = Utils.dpToPx(200);
@@ -107,13 +146,13 @@ public class MainActivity extends AppCompatActivity {
             layoutParams.width = widthPixels;
             flVedio.setLayoutParams(layoutParams);
 
-            clMain.requestLayout();
+            rlMain.requestLayout();
             showSystemUI();
 
         } else {
             Toast.makeText(MainActivity.this, "现在是横屏", Toast.LENGTH_SHORT).show();
-            clMain.removeAllViews();
-            clMain.addView(flVedio);
+            rlMain.removeAllViews();
+            rlMain.addView(flVedio);
 
             int widthPixels = FrameLayout.LayoutParams.MATCH_PARENT;
             int heightPixels = FrameLayout.LayoutParams.MATCH_PARENT;
@@ -122,7 +161,7 @@ public class MainActivity extends AppCompatActivity {
             layoutParams.width = widthPixels;
             flVedio.setLayoutParams(layoutParams);
 
-            clMain.requestLayout();
+            rlMain.requestLayout();
 
             hideSystemUI();
 
