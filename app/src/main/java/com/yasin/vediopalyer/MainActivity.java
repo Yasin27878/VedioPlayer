@@ -1,7 +1,10 @@
 package com.yasin.vediopalyer;
 
+import android.app.Activity;
+import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
@@ -12,16 +15,20 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.DisplayMetrics;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
+import android.widget.SeekBar;
 import android.widget.Toast;
 import android.widget.VideoView;
 
@@ -42,6 +49,15 @@ public class MainActivity extends AppCompatActivity {
 
     //默认显示视频操作导航
     private boolean isShowNavigation = false;
+
+    AudioManager am;
+    SeekBar seekbarVoice;
+    private boolean isMute;
+    private int touchRang; //横评下的屏幕高度
+    private int mVol; //当前音量
+    private int maxVoice; //最大音量
+    private float startX;
+    private float startY;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +82,13 @@ public class MainActivity extends AppCompatActivity {
         navigation.setVisibility(View.VISIBLE);
         isShowNavigation = true;
 
+        am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        maxVoice = mVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        DisplayMetrics dm = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(dm);
+        int screenHeight = dm.heightPixels;
+        int screenWidth = dm.widthPixels;
+
         video.setVideoPath("http://baobab.wandoujia.com/api/v1/playUrl?vid=2614&editionType=high");
         //video.setZOrderOnTop(true);
         video.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
@@ -80,13 +103,103 @@ public class MainActivity extends AppCompatActivity {
                 mp.start();
             }
         });
+/**
+ * 手势监测
+ */
+        GestureDetector gestureDetector = new GestureDetector(this, new GestureDetector.OnGestureListener() {
+            @Override//手指点击屏幕的瞬间
+            public boolean onDown(MotionEvent e) {
+                LogUtils.d("onDown");
+                startY = e.getY();
+                startX = e.getX();
+                mVol = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+                touchRang = Math.min(screenHeight, screenWidth);//screenHeight
+                return true;
+            }
 
+            @Override//点击屏幕 拖住不放
+            public void onShowPress(MotionEvent e) {
+                LogUtils.d("onShowPress");
+
+            }
+
+            @Override//单击行为
+            public boolean onSingleTapUp(MotionEvent e) {
+                LogUtils.d("onSingleTapUp");
+                if (isShowNavigation) {
+                    LogUtils.d(isShowNavigation);
+                    navigation.setVisibility(View.GONE);
+                    isShowNavigation = false;
+                } else {
+                    LogUtils.d(isShowNavigation);
+                    navigation.setVisibility(View.VISIBLE);
+                    isShowNavigation = true;
+                }
+                return false;
+            }
+
+            @Override//拖动屏幕
+            public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+                LogUtils.d("onScroll");
+                //横屏是进行操作  竖屏不进行滑动监听
+                if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                    LogUtils.d("横屏----------------");
+                    //水平滑动距离大于竖直滑动距离 认定水平滑动
+                    if (Math.abs(e2.getX() - e1.getX()) > Math.abs(e2.getY() - e1.getY())) {
+                        LogUtils.d("调整视频播放的进度!");
+                    } else {//上下滑动
+                        //滑动右边屏--> 声音降低与调高
+                        if (e1.getX() > screenHeight / 2) {
+                            //右边屏幕-调节声音
+                            //改变声音 = （滑动屏幕的距离： 总距离）*音量最大值
+                            float delta = (distanceY / touchRang) * maxVoice;
+                            //最终声音 = 原来的 + 改变声音；
+                            int voice = (int) Math.min(Math.max(mVol + delta, 0), maxVoice);
+                            if (delta != 0) {
+                                isMute = false;
+                                updateVoice(voice, isMute);
+                            }
+                        } else {//滑动左边屏--> 屏幕亮度降低与调高
+                            //左边屏幕-调节亮度
+                            final double FLING_MIN_DISTANCE = 0.5;
+                            final double FLING_MIN_VELOCITY = 0.5;
+                            if (distanceY > FLING_MIN_DISTANCE && Math.abs(distanceY) > FLING_MIN_VELOCITY) {
+                                setBrightness(10);
+                            }
+                            if (distanceY < FLING_MIN_DISTANCE && Math.abs(distanceY) > FLING_MIN_VELOCITY) {
+                                setBrightness(-10);
+                            }
+                        }
+                    }
+                }else {
+                    LogUtils.d("竖屏---------------");
+                }
+                return false;
+            }
+
+            @Override
+            public void onLongPress(MotionEvent e) {
+                LogUtils.d("onLongPress");
+            }
+
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                LogUtils.d("onFling");
+                return false;
+            }
+        });
+        gestureDetector.setIsLongpressEnabled(false);
         /**
          * 处理点击屏幕 显示navigation布局
          */
         video.setOnTouchListener((v, event) -> {
             LogUtils.d(event.getAction());
-            switch (event.getAction()) {
+
+            boolean consume = gestureDetector.onTouchEvent(event);
+            return consume;
+
+
+    /*        switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN://点击
                     if (isShowNavigation) {
                         LogUtils.d(isShowNavigation);
@@ -98,8 +211,8 @@ public class MainActivity extends AppCompatActivity {
                         isShowNavigation = true;
                     }
                     break;
-            }
-            return true;
+            }*/
+          //  return true;
         });
 
 
@@ -225,5 +338,38 @@ public class MainActivity extends AppCompatActivity {
     private void showSystemUI() {
         mDecorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+    }
+
+    /**
+     * 设置音量的大小
+     *
+     * @param progress
+     */
+    private void updateVoice(int progress, boolean isMute) {
+        if (isMute) {
+
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
+            // seekbarVoice.setProgress(0);
+        } else {
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, progress, 0);
+            // seekbarVoice.setProgress(progress);
+            // currentVoice = progress;
+        }
+    }
+
+    /*
+ *
+ * 设置屏幕亮度 lp = 0 全暗 ，lp= -1,根据系统设置， lp = 1; 最亮
+ */
+    public void setBrightness(float brightness) {
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+
+        lp.screenBrightness = lp.screenBrightness + brightness / 255.0f;
+        if (lp.screenBrightness > 1) {
+            lp.screenBrightness = 1;
+        } else if (lp.screenBrightness < 0.1) {
+            lp.screenBrightness = (float) 0.1;
+        }
+        getWindow().setAttributes(lp);
     }
 }
