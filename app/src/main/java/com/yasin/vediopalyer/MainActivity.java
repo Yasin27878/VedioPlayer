@@ -83,7 +83,7 @@ public class MainActivity extends AppCompatActivity {
         isShowNavigation = true;
 
         am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        maxVoice = mVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        maxVoice = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
         DisplayMetrics dm = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(dm);
         int screenHeight = dm.heightPixels;
@@ -114,6 +114,7 @@ public class MainActivity extends AppCompatActivity {
                 startX = e.getX();
                 mVol = am.getStreamVolume(AudioManager.STREAM_MUSIC);
                 touchRang = Math.min(screenHeight, screenWidth);//screenHeight
+                LogUtils.d("touchRange: "+touchRang);
                 return true;
             }
 
@@ -154,7 +155,8 @@ public class MainActivity extends AppCompatActivity {
                             //改变声音 = （滑动屏幕的距离： 总距离）*音量最大值
                             float delta = (distanceY / touchRang) * maxVoice;
                             //最终声音 = 原来的 + 改变声音；
-                            int voice = (int) Math.min(Math.max(mVol + delta, 0), maxVoice);
+                            //int voice = (int) Math.min(Math.max(mVol + delta, 0), maxVoice);
+                            int voice = (int) (mVol + delta);
                             if (delta != 0) {
                                 isMute = false;
                                 updateVoice(voice, isMute);
@@ -171,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
                             }
                         }
                     }
-                }else {
+                } else {
                     LogUtils.d("竖屏---------------");
                 }
                 return false;
@@ -212,7 +214,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     break;
             }*/
-          //  return true;
+            //  return true;
         });
 
 
@@ -346,6 +348,7 @@ public class MainActivity extends AppCompatActivity {
      * @param progress
      */
     private void updateVoice(int progress, boolean isMute) {
+        LogUtils.d("Progress: " + progress);
         if (isMute) {
 
             am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
