@@ -114,7 +114,7 @@ public class MainActivity extends AppCompatActivity {
                 startX = e.getX();
                 mVol = am.getStreamVolume(AudioManager.STREAM_MUSIC);
                 touchRang = Math.min(screenHeight, screenWidth);//screenHeight
-                LogUtils.d("touchRange: "+touchRang);
+                LogUtils.d("touchRange: " + touchRang);
                 return true;
             }
 
@@ -191,6 +191,23 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         gestureDetector.setIsLongpressEnabled(false);
+        gestureDetector.setOnDoubleTapListener(new GestureDetector.OnDoubleTapListener() {
+            @Override
+            public boolean onSingleTapConfirmed(MotionEvent e) {
+                return false;
+            }
+
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                changeOrientation();
+                return true;
+            }
+
+            @Override
+            public boolean onDoubleTapEvent(MotionEvent e) {
+                return false;
+            }
+        });
         /**
          * 处理点击屏幕 显示navigation布局
          */
